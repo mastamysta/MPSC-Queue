@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include "shared.h"
+#include "shared.hpp"
 
 int main()
 {
@@ -32,12 +32,16 @@ int main()
         return -1;
     }
 
+    shm->sync.set_consumer_state(READY);
+
     std::cout << "Read back the following data from shared memory\n";
     std::cout << shm->thestring << "\n";
 
     const char *newstring = "Fiddle-dee-dee";
     std::cout << "Setting the shared memory string to " << newstring << ".\n";
     strcpy(shm->thestring, newstring);
+
+    shm->sync.set_consumer_state(DONE);
 
     return 0;
 }

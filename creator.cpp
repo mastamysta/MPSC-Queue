@@ -6,8 +6,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
-#include "shared.h"
+#include "shared.hpp"
 
 int main()
 {
@@ -43,11 +45,41 @@ int main()
         return -1;
     }
 
+    shm->sync.set_creator_state(READY);
+    shm->sync.set_consumer_state(NOT_CREATED);
+
     strcpy(shm->thestring, "Ringadingding");
 
-    sleep(5);
+    pid_t pid = fork();
+
+    if (pid == -1) // error
+    {
+        std::cout << "ERROR: Failed to fork a child process with errno: " << errno << ".\n";
+        return -1;
+    }
+    else if (!pid) // child
+    {
+        if (execve("./consumer", { NULL }, { NULL } ) < 0)
+        {
+            std::cout << "ERROR: Failed to execv to consumer program with errno: " << errno << ".\n";
+            return -1;
+        }
+    }
+    else // parent
+    {
+        ;
+    }
+
+    shm->sync.wait_for_consumer_state(DONE, DONE);
 
     std::cout << "Creator woke up and found the shared string has value: " << shm->thestring << ".\n";
+
+    int child_status = 0;
+
+    while(waitpid(pid, &child_status, WNOHANG) != pid)
+    {
+        ;
+    }
 
     shm_unlink(SHARED_MEMORY_NAME);
 
