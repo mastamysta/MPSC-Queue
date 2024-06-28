@@ -28,8 +28,8 @@ enum reader_state
 class agent_states
 {    
 public:
-    writer_state w;
-    reader_state r;
+    volatile writer_state w;
+    volatile reader_state r;
 
     void wait_for_writer_state(writer_state s)
     {

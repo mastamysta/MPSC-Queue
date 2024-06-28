@@ -15,26 +15,28 @@ public:
 
     bool push(T value)
     {
-        // Can't push if queue is full
-        if (tail == head - 1 || (head == 0 && tail == S-1))
-            return true;
+        size_t reserved_index = -1;
+        size_t next = -1;
 
-        size_t reserved_index = tail;
-        size_t next_index = (reserved_index+1) % S;
-
-        while (!tail.compare_exchange_strong(reserved_index, 
-                                            next_index,
-                                            std::memory_order_release, 
-                                            std::memory_order_relaxed))
+        while (true) 
         {
             reserved_index = tail;
+            next = (reserved_index + 1) % S;
 
-            // Avoid busy-blocking in the event that someone beat us to the last slot.
-            if (tail == head - 1 || (head == 0 && tail == S-1))
+            if (reserved_index == head - 1 || (head == 0 && reserved_index == S-1))
                 return true;
+
+            if(tail.compare_exchange_weak(reserved_index, 
+                                            next,
+                                            std::memory_order_acquire, 
+                                            std::memory_order_acquire))
+                break;
         }
 
-        std::cout << "Writing value " << value << "\n";
+        if (valid[reserved_index])
+        {
+            std::cout << "ERROR: Writing over valid data at index " << reserved_index << ".\n";
+        }
 
         buf[reserved_index] = value;
         valid[reserved_index] = true;

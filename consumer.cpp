@@ -9,25 +9,25 @@
 
 static void begin_read_messages(shared_uint64_queue *shm)
 {
-    for (uint64_t i = 0; i < EXPECTED_MESSAGE_COUNT; i++)
+    unsigned long long int cnt = 0;
+
+    while (true)
     {
         uint64_t p;
         
         if(shm->q.pop(p))
         {
-            // Go away and do something else?
-            i--;
-            continue;
+            if (shm->state.w == W_DONE)
+            {
+                std::cout << "head: " << shm->q.head << " tail: " << shm->q.tail << ".\n";
+                break;
+            }
         }
-        
-        if (p != i)
-        {
-            std::cout << "Expected value " << i << " but got value " << p << ".\n";
-            std::cout << "Head = " << shm->q.head << " tail: " << shm->q.tail << "\n";
-
-            return;
-        }
+        else
+            cnt++;
     }
+
+    std::cout << "Reader consumed " << cnt << " messages.\n";
 }
 
 static shared_uint64_queue *open_shared_queue()
@@ -70,6 +70,8 @@ int main()
     shm->state.r = READING;
 
     begin_read_messages(shm);
+
+    std::cout << "Consumer done!\n";
 
     shm->state.r = R_DONE;
 

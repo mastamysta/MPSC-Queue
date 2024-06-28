@@ -3,7 +3,7 @@
 
 TARGETS=creator consumer
 
-all: $(TARGETS)
+all: clean $(TARGETS)
 
 creator:
 	g++ creator.cpp -o creator -g

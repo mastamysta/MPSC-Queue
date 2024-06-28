@@ -8,13 +8,22 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <pthread.h>
 
 #include "shared.hpp"
 
 static int fd;
 
-static void begin_write_messages(shared_uint64_queue *shm)
+#define MAX_WRITERS 1024
+
+void *writer_thread_func(void *param)
 {
+    shared_uint64_queue *shm = (shared_uint64_queue*)param;
+
+    std::cout << "New writer spawned\n";
+
+    uint32_t cnt = 0;
+
     for (uint64_t i = 0; i < EXPECTED_MESSAGE_COUNT; i++)
     {
         if(shm->q.push(i))
@@ -23,7 +32,48 @@ static void begin_write_messages(shared_uint64_queue *shm)
             i--;
             continue;
         }
+        else
+            cnt++;
     }
+
+    std::cout << "Writer completing\n";
+
+    return (void*)cnt;
+}
+
+static void begin_write_messages(shared_uint64_queue *shm, uint8_t num_writers)
+{
+    if (num_writers >= MAX_WRITERS)
+    {
+        std::cout << "Too many writers requested, max is: " << MAX_WRITERS << ".\n";
+        exit(-1);
+    }
+
+    std::cout << "Creating " << num_writers << " writers.\n";
+
+    pthread_t threads[MAX_WRITERS];
+
+    for (int i = 0; i < num_writers; i++)
+    {
+        if (pthread_create(&threads[i], nullptr, writer_thread_func, shm))
+        {
+            std::cout << "ERROR: Failed to create thread " << i << " with errno " << errno << ".\n";
+            exit(-1);
+        }
+    }
+
+    uint32_t total_messages = 0;
+
+    for (int i = 0; i < num_writers; i++)
+    {
+        uint32_t msgcnt = 0;
+        pthread_join(threads[i], (void**)&msgcnt);
+        std::cout << "Writer " << i << " joined after sending " << msgcnt << " messages.\n";
+        total_messages += msgcnt;
+    }
+
+    std::cout << "Sent a total of " << total_messages << " messages.\n";
+
 }
 
 static shared_uint64_queue *setup_shared_memory()
@@ -89,7 +139,7 @@ static pid_t fork_child_program()
     return pid;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     std::cout << "Starting up shared memory creator\n";
 
@@ -112,7 +162,14 @@ int main()
     shm->q.head = 0;
     shm->q.tail = 0;
 
-    begin_write_messages(shm);
+    uint8_t writers;
+
+    if (argc == 1)
+        writers = 1;
+    else
+        writers = strtol(argv[1], nullptr, 10);
+
+    begin_write_messages(shm, writers);
 
     shm->state.w = W_DONE;
 
