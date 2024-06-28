@@ -2,61 +2,48 @@
 
 #include <atomic>
 
+#include "fast_queue.hpp"
+
 #define SHARED_MEMORY_NAME "/bruh"
 #define SHARED_MEMORY_SIZE 1024
 #define SHARED_MEMORY_PERM 0600
 
-enum state
+#define EXPECTED_MESSAGE_COUNT 100000
+
+enum writer_state
 {
-    NOT_CREATED,
-    READY,
-    WAITING_FOR_CONSUMER,
-    WAITING_FOR_CREATOR,
-    DONE
+    W_READY,
+    WRITING,
+    W_DONE
 };
 
-
-class event_blob
+enum reader_state
 {
+    NOT_ALIVE,
+    R_READY,
+    READING,
+    R_DONE
+};
+
+class agent_states
+{    
 public:
-    void set_creator_state(int new_creator_state)
+    writer_state w;
+    reader_state r;
+
+    void wait_for_writer_state(writer_state s)
     {
-        creator_state = new_creator_state;
+        while (w != s) { ; }
     }
 
-    void set_consumer_state(int new_consumer_state)
+    void wait_for_reader_state(reader_state s)
     {
-        consumer_state = new_consumer_state;
+        while (r != s) { ; }
     }
-
-    void wait_for_creator_state(int wait_creator_state, int new_consumer_state)
-    {
-        while (creator_state != wait_creator_state)
-        {
-            sched_yield();
-        }
-
-        consumer_state = new_consumer_state;
-    }
-
-    void wait_for_consumer_state(int wait_consumer_state, int new_creator_state)
-    {
-        while (consumer_state != wait_consumer_state)
-        {
-            sched_yield();
-        }
-
-        creator_state = new_creator_state;
-    }
-
-private:
-    std::atomic<int> creator_state;
-    std::atomic<int> consumer_state;
-
 };
 
-struct shared_string
+struct shared_uint64_queue
 {
-    event_blob sync;
-    char thestring[128];
+    agent_states state;
+    fastQueue<uint64_t, 512> q;
 };
