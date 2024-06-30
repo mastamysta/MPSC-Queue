@@ -8,6 +8,7 @@
 #define SHARED_MEMORY_SIZE 1024
 #define SHARED_MEMORY_PERM 0600
 
+#define MAX_WRITERS 1
 #define EXPECTED_MESSAGE_COUNT 100000
 
 enum writer_state
@@ -47,3 +48,23 @@ struct shared_uint64_queue
     agent_states state;
     fastQueue<uint64_t, 512> q;
 };
+
+#include <fstream>
+
+void dump_values(const char *filename, unsigned long long buf[], size_t siz)
+{
+    std::ofstream file (filename);
+
+    if (!file.is_open())
+    {
+        std::cout << "ERROR: Failed to open dump file " << filename << ".\n";
+        exit(-1);
+    }
+
+    for (size_t i = 0; i < siz; i ++)
+    {
+        file << buf[i] << "\n";
+    }
+
+    file.close();
+}

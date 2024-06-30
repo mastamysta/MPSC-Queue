@@ -9,12 +9,14 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#include <x86intrin.h>
 
 #include "shared.hpp"
 
 static int fd;
 
-#define MAX_WRITERS 1024
+static unsigned long long begin_times[EXPECTED_MESSAGE_COUNT];
+static unsigned long long end_times[EXPECTED_MESSAGE_COUNT];
 
 void *writer_thread_func(void *param)
 {
@@ -24,8 +26,13 @@ void *writer_thread_func(void *param)
 
     uint32_t cnt = 0;
 
+    unsigned long long begin;
+
     for (uint64_t i = 0; i < EXPECTED_MESSAGE_COUNT; i++)
     {
+
+        begin = __rdtsc();
+
         if(shm->q.push_nospin(i))
         {
             // Go away and do something else?
@@ -33,7 +40,11 @@ void *writer_thread_func(void *param)
             continue;
         }
         else
+        {
+            begin_times[i] = begin;
+            end_times[i] = __rdtsc();
             cnt++;
+        }
     }
 
     std::cout << "Writer completing\n";
@@ -43,9 +54,9 @@ void *writer_thread_func(void *param)
 
 static void begin_write_messages(shared_uint64_queue *shm, uint8_t num_writers)
 {
-    if (num_writers >= MAX_WRITERS)
+    if (num_writers > MAX_WRITERS)
     {
-        std::cout << "Too many writers requested, max is: " << MAX_WRITERS << ".\n";
+        std::cout << "Too many writers requested " << num_writers << ", max is: " << MAX_WRITERS << ".\n";
         exit(-1);
     }
 
@@ -181,6 +192,10 @@ int main(int argc, char *argv[])
     }
 
     std::cout << "Child process " << child << " reaped.\n";
+
+    std::cout << "Creator dumping timing values to disk.\n";
+    dump_values("./creator_start_times.txt", begin_times, EXPECTED_MESSAGE_COUNT);
+    dump_values("./creator_end_times.txt", end_times, EXPECTED_MESSAGE_COUNT);
 
     shm_unlink(SHARED_MEMORY_NAME);
 

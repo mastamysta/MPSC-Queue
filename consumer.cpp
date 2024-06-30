@@ -4,17 +4,25 @@
 #include <sys/mman.h>
 #include <errno.h>
 #include <string.h>
+#include <x86intrin.h>
 
 #include "shared.hpp"
+
+
+static unsigned long long begin_times[EXPECTED_MESSAGE_COUNT];
+static unsigned long long end_times[EXPECTED_MESSAGE_COUNT];
 
 static void begin_read_messages(shared_uint64_queue *shm)
 {
     unsigned long long int cnt = 0;
+    unsigned long long begin;
 
     while (true)
     {
         uint64_t p;
         
+        begin = __rdtsc();
+
         if(shm->q.pop(p))
         {
             if (shm->state.w == W_DONE)
@@ -24,7 +32,11 @@ static void begin_read_messages(shared_uint64_queue *shm)
             }
         }
         else
+        {
+            end_times[cnt] = __rdtsc();
+            begin_times[cnt] = begin;
             cnt++;
+        }
     }
 
     std::cout << "Reader consumed " << cnt << " messages.\n";
@@ -74,6 +86,10 @@ int main()
     std::cout << "Consumer done!\n";
 
     shm->state.r = R_DONE;
+
+    std::cout << "Consumer dumping timing values to disk.\n";
+    dump_values("./consumer_start_times.txt", begin_times, EXPECTED_MESSAGE_COUNT);
+    dump_values("./consumer_end_times.txt", end_times, EXPECTED_MESSAGE_COUNT);
 
     return 0;
 }
