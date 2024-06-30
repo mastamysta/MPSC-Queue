@@ -26,7 +26,7 @@ void *writer_thread_func(void *param)
 
     for (uint64_t i = 0; i < EXPECTED_MESSAGE_COUNT; i++)
     {
-        if(shm->q.push(i))
+        if(shm->q.push_nospin(i))
         {
             // Go away and do something else?
             i--;

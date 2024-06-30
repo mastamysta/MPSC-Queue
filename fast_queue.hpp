@@ -44,6 +44,33 @@ public:
         return false;
     }
 
+    bool push_nospin(T value)
+    {
+        // Atomic post-increment, to reserve a slot
+        size_t reserved_index = tail++;
+
+        if (reserved_index == head-1 || (head == 0 && reserved_index == S-1))
+        {
+            tail--;
+            return true;
+        }
+        
+        if (reserved_index == S-1)
+            tail = 0;
+        else if (reserved_index >= S)
+            return true;
+
+        if (valid[reserved_index])
+        {
+            std::cout << "ERROR: Writing over valid data at index " << reserved_index << ".\n";
+        }
+
+        buf[reserved_index] = value;
+        valid[reserved_index] = true;
+
+        return false;
+    }
+
 
     // The fast queue supports multiple writers but only one reader, hence no sync is needed
     // to protect the 'head' offset.
