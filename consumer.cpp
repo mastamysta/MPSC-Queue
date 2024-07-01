@@ -1,16 +1,19 @@
 #include <iostream>
+#include <array>
+
 
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <errno.h>
 #include <string.h>
 #include <x86intrin.h>
+#include <unistd.h>
 
 #include "shared.hpp"
 
 
-static unsigned long long begin_times[EXPECTED_MESSAGE_COUNT];
-static unsigned long long end_times[EXPECTED_MESSAGE_COUNT];
+static std::array<unsigned long long, EXPECTED_MESSAGE_COUNT> begin_times;
+static std::array<unsigned long long, EXPECTED_MESSAGE_COUNT> end_times;
 
 static void begin_read_messages(shared_uint64_queue *shm)
 {
@@ -33,8 +36,8 @@ static void begin_read_messages(shared_uint64_queue *shm)
         }
         else
         {
-            end_times[cnt] = __rdtsc();
-            begin_times[cnt] = begin;
+            //end_times[cnt] = __rdtsc();
+            //begin_times[cnt] = begin;
             cnt++;
         }
     }
@@ -88,8 +91,7 @@ int main()
     shm->state.r = R_DONE;
 
     std::cout << "Consumer dumping timing values to disk.\n";
-    dump_values("./consumer_start_times.txt", begin_times, EXPECTED_MESSAGE_COUNT);
-    dump_values("./consumer_end_times.txt", end_times, EXPECTED_MESSAGE_COUNT);
+    //dump_values("./consumer_times.txt", begin_times, end_times, EXPECTED_MESSAGE_COUNT);
 
     return 0;
 }

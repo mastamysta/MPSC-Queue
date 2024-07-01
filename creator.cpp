@@ -1,4 +1,6 @@
 #include <iostream>
+#include <vector>
+#include <array>
 
 #include <errno.h>
 #include <sys/mman.h>
@@ -9,18 +11,23 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#include <signal.h>
 #include <x86intrin.h>
 
 #include "shared.hpp"
 
+static bool unlinked = false;
+
 static int fd;
 
-static unsigned long long begin_times[EXPECTED_MESSAGE_COUNT];
-static unsigned long long end_times[EXPECTED_MESSAGE_COUNT];
+static std::vector<std::array<unsigned long long, EXPECTED_MESSAGE_COUNT>> begin_times;
+static std::vector<std::array<unsigned long long, EXPECTED_MESSAGE_COUNT>> end_times;
 
 void *writer_thread_func(void *param)
 {
-    shared_uint64_queue *shm = (shared_uint64_queue*)param;
+    thread_wrapper *t = (thread_wrapper*)param;
+    shared_uint64_queue *shm = t->shm;
+    uint8_t thr = t->thr;
 
     std::cout << "New writer spawned\n";
 
@@ -33,7 +40,7 @@ void *writer_thread_func(void *param)
 
         begin = __rdtsc();
 
-        if(shm->q.push_nospin(i))
+        if(shm->q.push(i))
         {
             // Go away and do something else?
             i--;
@@ -41,8 +48,8 @@ void *writer_thread_func(void *param)
         }
         else
         {
-            begin_times[i] = begin;
-            end_times[i] = __rdtsc();
+            begin_times[thr][i] = begin;
+            end_times[thr][i] = __rdtsc();
             cnt++;
         }
     }
@@ -63,10 +70,17 @@ static void begin_write_messages(shared_uint64_queue *shm, uint8_t num_writers)
     std::cout << "Creating " << num_writers << " writers.\n";
 
     pthread_t threads[MAX_WRITERS];
+    thread_wrapper w[MAX_WRITERS];
 
     for (int i = 0; i < num_writers; i++)
     {
-        if (pthread_create(&threads[i], nullptr, writer_thread_func, shm))
+        std::array<unsigned long long, EXPECTED_MESSAGE_COUNT> b, e;
+        begin_times.push_back( b );
+        end_times.push_back( e );
+        w[i].shm = shm;
+        w[i].thr = i;
+
+        if (pthread_create(&threads[i], nullptr, writer_thread_func, &w[i]))
         {
             std::cout << "ERROR: Failed to create thread " << i << " with errno " << errno << ".\n";
             exit(-1);
@@ -150,9 +164,25 @@ static pid_t fork_child_program()
     return pid;
 }
 
+void sigint_handler(int signo)
+{
+    std::cout << "Unlinking shared memory in SIGINT handler.\n";
+
+    if (!unlinked)
+        shm_unlink(SHARED_MEMORY_NAME);
+
+    exit(-1);
+}
+
 int main(int argc, char *argv[])
 {
     std::cout << "Starting up shared memory creator\n";
+
+    if (signal(SIGINT, sigint_handler) == SIG_ERR)
+    {
+        std::cout << "ERROR: Failed to post SIGINT handler.\n";
+        return -1;
+    }
 
     shared_uint64_queue *shm = setup_shared_memory();
 
@@ -194,10 +224,26 @@ int main(int argc, char *argv[])
     std::cout << "Child process " << child << " reaped.\n";
 
     std::cout << "Creator dumping timing values to disk.\n";
-    dump_values("./creator_start_times.txt", begin_times, EXPECTED_MESSAGE_COUNT);
-    dump_values("./creator_end_times.txt", end_times, EXPECTED_MESSAGE_COUNT);
 
+    for (int i = 0; i < writers; i++)
+    {
+        char buf[1024];
+        sprintf(buf, "./creator_times_%i.txt", i);
+        dump_values(buf, begin_times[i], end_times[i], EXPECTED_MESSAGE_COUNT);
+    }
+
+    unlinked = true;
     shm_unlink(SHARED_MEMORY_NAME);
 
     return 0;
+}
+
+__attribute__((destructor))
+static void dest()
+{
+    if (!unlinked)
+    {
+        std::cout << "Unlinking shared memory!\n";
+        shm_unlink(SHARED_MEMORY_NAME);
+    }
 }

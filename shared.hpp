@@ -8,8 +8,8 @@
 #define SHARED_MEMORY_SIZE 1024
 #define SHARED_MEMORY_PERM 0600
 
-#define MAX_WRITERS 1
-#define EXPECTED_MESSAGE_COUNT 100000
+#define MAX_WRITERS 15
+#define EXPECTED_MESSAGE_COUNT 100
 
 enum writer_state
 {
@@ -29,8 +29,8 @@ enum reader_state
 class agent_states
 {    
 public:
-    volatile writer_state w;
-    volatile reader_state r;
+    volatile std::atomic<writer_state> w;
+    volatile std::atomic<reader_state> r;
 
     void wait_for_writer_state(writer_state s)
     {
@@ -46,12 +46,22 @@ public:
 struct shared_uint64_queue
 {
     agent_states state;
-    fastQueue<uint64_t, 512> q;
+    fastQueue_nospin<uint64_t, 512> q;
+};
+
+struct thread_wrapper
+{
+    shared_uint64_queue *shm;
+    uint8_t thr;
 };
 
 #include <fstream>
+#include <array>
 
-void dump_values(const char *filename, unsigned long long buf[], size_t siz)
+void dump_values(const char *filename, 
+                    std::array<unsigned long long, EXPECTED_MESSAGE_COUNT> bufa, 
+                    std::array<unsigned long long, EXPECTED_MESSAGE_COUNT> bufb, 
+                    size_t siz)
 {
     std::ofstream file (filename);
 
@@ -63,7 +73,7 @@ void dump_values(const char *filename, unsigned long long buf[], size_t siz)
 
     for (size_t i = 0; i < siz; i ++)
     {
-        file << buf[i] << "\n";
+        file << bufa[i] << "," << bufb[i] << "\n";
     }
 
     file.close();
