@@ -63,61 +63,6 @@ public:
         return false;
     }
 
-    bool push_nospin(T value)
-    {
-        // Atomic post-increment, to reserve a slot
-        size_t reserved_index = tail.fetch_add(1) % S;
-
-        if (reserved_index == head - 1 % S)
-        {
-            tail--;
-            return true;
-        }
-
-        // head should start at same point as tail, but we maybe need a count of elements to know whether
-        // we have wrapped. In the base case, initially we hang because head starts = 0 and tail = 0
-        // But we dont want to always not use the full buffer as this will cause head to start on an invalid index
-        // 
-        // if (reserved_index == head-1 || (head == 0 && reserved_index == S-1))
-        // {
-        //     tail--;
-        //     return true;
-        // }
-        
-        // if (reserved_index == S)
-        //     tail = 0;
-        // else if (reserved_index > S)
-        //     return true;
-
-        if (valid[reserved_index])
-        {
-            std::cout << "ERROR: Writing over valid data at index " << reserved_index << ".\n";
-        }
-
-        buf[reserved_index] = value;
-        valid[reserved_index] = true;
-
-        return false;
-    }
-
-    // The fast queue supports multiple writers but only one reader, hence no sync is needed
-    // to protect the 'head' offset.
-    bool pop_nospin(T& ret)
-    {
-        if (head == tail)
-            return true;
-
-        if (!valid[head])
-            return true;
-
-        ret = buf[head];
-        valid[head] = false;
-
-        head = (head+1 == S) ? 0 : head+1;
-
-        return false;
-    }
-
     volatile std::atomic<size_t> head;
     volatile std::atomic<size_t> tail;
     volatile std::atomic<T> buf[S];
