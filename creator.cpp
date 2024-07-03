@@ -77,6 +77,10 @@ static void begin_write_messages(shared_uint64_queue *shm, uint8_t num_writers)
         std::array<unsigned long long, EXPECTED_MESSAGE_COUNT> b, e;
         begin_times.push_back( b );
         end_times.push_back( e );
+    }
+
+    for (int i = 0; i < num_writers; i++)
+    {
         w[i].shm = shm;
         w[i].thr = i;
 

@@ -9,7 +9,7 @@
 #define SHARED_MEMORY_PERM 0600
 
 #define MAX_WRITERS 15
-#define EXPECTED_MESSAGE_COUNT 100
+#define EXPECTED_MESSAGE_COUNT 100000
 
 enum writer_state
 {
