@@ -1,4 +1,4 @@
-# Performance Benchmarks for CAS-Based MPSC Queue
+# Performance Benchmarks for CAS-Based (Compare-and-Swap) MPSC Queue
 
 | Producers | 1 | 3 | 5 | 7 |
 | --- | --- | --- | --- | --- |
@@ -27,6 +27,35 @@ The results for the 3-producer system look a bit odd, but the rest seem fairly i
 ## 9 concurrent writers RDTSC measured times:
 
 The formance with 9 concurrent writers was so poor that I wasn't able to get a good result. The program either ran for hours or the warmups didn't overlap properly and the program terminated early.
+
+# In comparison with the FA-Based (Fetch-and-Add) MPSC Queue
+
+| Producers | 1 | 3 | 5 | 7 | 9 |
+| --- | --- | --- | --- | --- | --- |
+| Mean push time (cycles) | 191 | 252 | 607 | 720 | X |
+| Median push time (cycles) | 200 | 200 | 340 | 320 | 220 |
+| 99th percentime push time (cycles) | 680 | 498 | 3320 | 3240 | 2060 |
+| 99.99th percentime push time (cycles) | 760 | 1520 | 8280 | 3700 | 9840 |
+
+## No concurrent writers RDTSC measured times
+![image](https://github.com/mastamysta/MPSC-Queue/assets/47383446/db15eba5-9994-4d46-bc40-f243f7be3c52)
+
+
+## 3 concurrent writers RDTSC measured times
+![image](https://github.com/mastamysta/MPSC-Queue/assets/47383446/f1b27ecc-e675-49f3-9e1c-ed10bc0c7ff8)
+
+
+## 5 concurrent writers RDTSC measured times
+![image](https://github.com/mastamysta/MPSC-Queue/assets/47383446/23a14368-b99e-4077-9d47-d5ec8f77b550)
+
+
+## 7 concurrent writers RDTSC measured times
+![image](https://github.com/mastamysta/MPSC-Queue/assets/47383446/99d49757-9cc9-4ddb-8308-2a21aa62cad5)
+
+## 9 concurrent writers RDTSC measured times:
+![image](https://github.com/mastamysta/MPSC-Queue/assets/47383446/7a0bdf89-34a3-4811-a33d-00f3a0feed58)
+
+Notablby, the latency of the non-spinning queue scales *much* better with number of producers. We're even able to get some results for 9 producers with ~200 cycles of latency. Not too bad!
 
 # Development and Debug
 
