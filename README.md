@@ -1,4 +1,38 @@
-Here are some RDTSC results from experiments with the compare-and-swap (CAS) queue:
+# Performance Benchmarks for CAS-Based MPSC Queue
+
+| Producers | 1 | 3 | 5 | 7 |
+| --- | --- | --- | --- | --- |
+| Mean push time (cycles) | 191 | 680 | 976 | 645 |
+| Median push time (cycles) | 180 | 521 | 300 | 560 |
+| 99th percentime push time (cycles) | 420 | 3560 | 1460 | 2620 |
+| 99.99th percentime push time (cycles) | 1060 | 14280 | 7940 | 16300 |
+
+The results for the 3-producer system look a bit odd, but the rest seem fairly intuitive. As contention on the list increases, threads spin more waiting to acquire an index in the queue and so latency increases.
+
+## No concurrent writers RDTSC measured times
+![image](https://github.com/mastamysta/MPSC-Queue/assets/47383446/87019dbc-8d90-47a9-bc43-b638e98141b0)
+
+
+## 3 concurrent writers RDTSC measured times
+![image](https://github.com/mastamysta/MPSC-Queue/assets/47383446/907f8eb2-2f1a-4e68-a178-eb359abcf209)
+
+
+## 5 concurrent writers RDTSC measured times
+![image](https://github.com/mastamysta/MPSC-Queue/assets/47383446/0cc81e74-4318-444f-bb4f-b8943406383a)
+
+
+## 7 concurrent writers RDTSC measured times
+![image](https://github.com/mastamysta/MPSC-Queue/assets/47383446/a651a173-4057-4ded-9803-2c59bc5d2381)
+
+## 9 concurrent writers RDTSC measured times:
+
+The formance with 9 concurrent writers was so poor that I wasn't able to get a good result. The program either ran for hours or the warmups didn't overlap properly and the program terminated early.
+
+# Development and Debug
+
+Here are some RDTSC results from experiments with the compare-and-swap (CAS) queue before I'd done any debug. These results are clearly a bit odd, for starters the uncontended list performed worse than the list with 9 contentious writers. I did a bit of investigation (shown below) and found that the cause was a combo of:
+ - The results data was buffered in memory for the full duration of the program and then dumped at the end. The pipeline was stalling waiting for changes to commit back to this results buffer.
+ - Not allowing enough warmup cycles for the single-threaded application to give reliable results. Allowing for 10-100 million warmup cycles improved this dramatically.
 
 | Producers | 1 | 3 | 5 | 9 |
 | --- | --- | --- | --- | --- |
