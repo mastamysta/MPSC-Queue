@@ -8,8 +8,10 @@
 #define SHARED_MEMORY_SIZE 1024
 #define SHARED_MEMORY_PERM 0600
 
-#define MAX_WRITERS 15
-#define EXPECTED_MESSAGE_COUNT 100000
+#define MAX_WRITERS 20
+
+#define WARMUP_MESSAGE_COUNT 1000000
+#define EXPECTED_MESSAGE_COUNT 500000
 
 enum writer_state
 {
@@ -46,35 +48,12 @@ public:
 struct shared_uint64_queue
 {
     agent_states state;
-    fastQueue_nospin<uint64_t, 512> q;
+    fastQueue<uint64_t, 512> q;
 };
 
 struct thread_wrapper
 {
     shared_uint64_queue *shm;
     uint8_t thr;
+    uint8_t total_thrs;
 };
-
-#include <fstream>
-#include <array>
-
-void dump_values(const char *filename, 
-                    std::array<unsigned long long, EXPECTED_MESSAGE_COUNT> bufa, 
-                    std::array<unsigned long long, EXPECTED_MESSAGE_COUNT> bufb, 
-                    size_t siz)
-{
-    std::ofstream file (filename);
-
-    if (!file.is_open())
-    {
-        std::cout << "ERROR: Failed to open dump file " << filename << ".\n";
-        exit(-1);
-    }
-
-    for (size_t i = 0; i < siz; i ++)
-    {
-        file << bufa[i] << "," << bufb[i] << "\n";
-    }
-
-    file.close();
-}

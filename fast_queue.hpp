@@ -26,6 +26,9 @@ public:
             if (reserved_index == head - 1 || (head == 0 && reserved_index == S-1))
                 return true;
 
+            if (valid[reserved_index])
+                return true;
+
             if(tail.compare_exchange_weak(reserved_index, 
                                             next,
                                             std::memory_order_acquire, 

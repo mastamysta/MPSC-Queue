@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
-#include <array>
+#include <fstream>
+#include <mutex>
 
 #include <errno.h>
 #include <sys/mman.h>
@@ -20,8 +21,15 @@ static bool unlinked = false;
 
 static int fd;
 
-static std::vector<std::array<unsigned long long, EXPECTED_MESSAGE_COUNT>> begin_times;
-static std::vector<std::array<unsigned long long, EXPECTED_MESSAGE_COUNT>> end_times;
+// Dump file stuff
+static std::mutex dump_mut;
+static std::ofstream dumpfile;
+
+void write_values(unsigned long long begin, unsigned long long end)
+{
+    std::lock_guard<std::mutex> guard(dump_mut);
+    dumpfile << begin << "," << end << "\n"; 
+}
 
 void *writer_thread_func(void *param)
 {
@@ -29,15 +37,27 @@ void *writer_thread_func(void *param)
     shared_uint64_queue *shm = t->shm;
     uint8_t thr = t->thr;
 
-    std::cout << "New writer spawned\n";
+    std::cout << "New writer spawned - warming up\n";
+
+    for (uint64_t i = 0; i < WARMUP_MESSAGE_COUNT; i++)
+    {
+        if(shm->q.push(i))
+        {
+            // Go away and do something else?
+            i--;
+        }
+    }
+
+    std::cout << "Warmup complete.\n";
 
     uint32_t cnt = 0;
-
     unsigned long long begin;
 
-    for (uint64_t i = 0; i < EXPECTED_MESSAGE_COUNT; i++)
+    // Expected message count is divided evenly between writers.
+    for (uint64_t i = 0; i < EXPECTED_MESSAGE_COUNT / t->total_thrs; i++)
     {
 
+        _mm_lfence();
         begin = __rdtsc();
 
         if(shm->q.push(i))
@@ -48,8 +68,8 @@ void *writer_thread_func(void *param)
         }
         else
         {
-            begin_times[thr][i] = begin;
-            end_times[thr][i] = __rdtsc();
+            write_values(begin, __rdtsc());
+            _mm_lfence();
             cnt++;
         }
     }
@@ -74,15 +94,9 @@ static void begin_write_messages(shared_uint64_queue *shm, uint8_t num_writers)
 
     for (int i = 0; i < num_writers; i++)
     {
-        std::array<unsigned long long, EXPECTED_MESSAGE_COUNT> b, e;
-        begin_times.push_back( b );
-        end_times.push_back( e );
-    }
-
-    for (int i = 0; i < num_writers; i++)
-    {
         w[i].shm = shm;
         w[i].thr = i;
+        w[i].total_thrs = num_writers;
 
         if (pthread_create(&threads[i], nullptr, writer_thread_func, &w[i]))
         {
@@ -182,6 +196,14 @@ int main(int argc, char *argv[])
 {
     std::cout << "Starting up shared memory creator\n";
 
+    dumpfile = std::ofstream("dumpfile.txt");
+
+    if (!dumpfile.is_open())
+    {
+        std::cout << "ERROR: Failed to open timing dump file.\n";
+        return -1;
+    }
+
     if (signal(SIGINT, sigint_handler) == SIG_ERR)
     {
         std::cout << "ERROR: Failed to post SIGINT handler.\n";
@@ -233,11 +255,12 @@ int main(int argc, char *argv[])
     {
         char buf[1024];
         sprintf(buf, "./creator_times_%i.txt", i);
-        dump_values(buf, begin_times[i], end_times[i], EXPECTED_MESSAGE_COUNT);
     }
 
     unlinked = true;
     shm_unlink(SHARED_MEMORY_NAME);
+
+    dumpfile.close();
 
     return 0;
 }
