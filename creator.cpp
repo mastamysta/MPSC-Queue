@@ -37,15 +37,27 @@ void *writer_thread_func(void *param)
     shared_uint64_queue *shm = t->shm;
     uint8_t thr = t->thr;
 
-    std::cout << "New writer spawned\n";
+    std::cout << "New writer spawned - warming up\n";
+
+    for (uint64_t i = 0; i < WARMUP_MESSAGE_COUNT; i++)
+    {
+        if(shm->q.push(i))
+        {
+            // Go away and do something else?
+            i--;
+        }
+    }
+
+    std::cout << "Warmup complete.\n";
 
     uint32_t cnt = 0;
-
     unsigned long long begin;
 
-    for (uint64_t i = 0; i < EXPECTED_MESSAGE_COUNT; i++)
+    // Expected message count is divided evenly between writers.
+    for (uint64_t i = 0; i < EXPECTED_MESSAGE_COUNT / t->total_thrs; i++)
     {
 
+        _mm_lfence();
         begin = __rdtsc();
 
         if(shm->q.push(i))
@@ -57,6 +69,7 @@ void *writer_thread_func(void *param)
         else
         {
             write_values(begin, __rdtsc());
+            _mm_lfence();
             cnt++;
         }
     }
@@ -83,6 +96,7 @@ static void begin_write_messages(shared_uint64_queue *shm, uint8_t num_writers)
     {
         w[i].shm = shm;
         w[i].thr = i;
+        w[i].total_thrs = num_writers;
 
         if (pthread_create(&threads[i], nullptr, writer_thread_func, &w[i]))
         {

@@ -1,19 +1,21 @@
 #include <iostream>
 #include <array>
 
-
+#include <signal.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <errno.h>
 #include <string.h>
 #include <x86intrin.h>
 #include <unistd.h>
+#include <sys/resource.h>
 
 #include "shared.hpp"
 
-
-static std::array<unsigned long long, EXPECTED_MESSAGE_COUNT> begin_times;
-static std::array<unsigned long long, EXPECTED_MESSAGE_COUNT> end_times;
+void segv_handler(int signum)
+{
+    std::cout << "ERROR: Consumer encountered a SIGSEGV.\n";
+}
 
 static void begin_read_messages(shared_uint64_queue *shm)
 {
@@ -24,7 +26,6 @@ static void begin_read_messages(shared_uint64_queue *shm)
     {
         uint64_t p;
         
-        begin = __rdtsc();
 
         if(shm->q.pop(p))
         {
@@ -36,8 +37,6 @@ static void begin_read_messages(shared_uint64_queue *shm)
         }
         else
         {
-            //end_times[cnt] = __rdtsc();
-            //begin_times[cnt] = begin;
             cnt++;
         }
     }
@@ -71,14 +70,26 @@ static shared_uint64_queue *open_shared_queue()
     return shm;
 }
 
+#include <errno.h>
+
 int main()
 {
     std::cout << "Consumer started up\n";
 
+    signal(SIGSEGV, segv_handler);
+
+    if (setpriority(PRIO_PROCESS, 0, PRIO_MAX))
+    {
+        std::cout << "ERROR: Failed to set priority " << errno << ".\n";
+    }
+
     shared_uint64_queue *shm = open_shared_queue();
 
     if (!shm)
+    {
+        std::cout << "ERROR: Consumer failed to open shared memory.\n";
         return -1;
+    }
 
     shm->state.r = R_READY;
     shm->state.wait_for_writer_state(WRITING);
@@ -91,7 +102,6 @@ int main()
     shm->state.r = R_DONE;
 
     std::cout << "Consumer dumping timing values to disk.\n";
-    //dump_values("./consumer_times.txt", begin_times, end_times, EXPECTED_MESSAGE_COUNT);
 
     return 0;
 }

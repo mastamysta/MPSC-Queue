@@ -9,7 +9,9 @@
 #define SHARED_MEMORY_PERM 0600
 
 #define MAX_WRITERS 20
-#define EXPECTED_MESSAGE_COUNT 100000
+
+#define WARMUP_MESSAGE_COUNT 1000000
+#define EXPECTED_MESSAGE_COUNT 500000
 
 enum writer_state
 {
@@ -46,11 +48,12 @@ public:
 struct shared_uint64_queue
 {
     agent_states state;
-    fastQueue_nospin<uint64_t, 512> q;
+    fastQueue<uint64_t, 512> q;
 };
 
 struct thread_wrapper
 {
     shared_uint64_queue *shm;
     uint8_t thr;
+    uint8_t total_thrs;
 };
