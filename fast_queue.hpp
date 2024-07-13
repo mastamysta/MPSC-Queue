@@ -67,8 +67,15 @@ public:
     }
 
     volatile std::atomic<size_t> head;
+
+    char pad0[256];// Just waste some space to mitigate false sharing.
+
     volatile std::atomic<size_t> tail;
-    volatile std::atomic<T> buf[S];
+
+
+    char pad1[256];// Just waste some space to mitigate false sharing.
+
+    volatile T buf[S];
     volatile bool valid[S];
 private:
 };
@@ -100,9 +107,6 @@ public:
         if (reserved_index < 0 || reserved_index > 511)
             std::cout << "ERROR: Limits not working " << reserved_index << ".\n";
 
-        // if (reserved_index == S-1)
-        //     tail = 0;
-
         if (valid[reserved_index])
             std::cout << "ERROR: Overwriting valid data at index " << reserved_index << " with ctot = " << ctot << ".\n";
 
@@ -132,10 +136,27 @@ public:
         return false;
     }
 
-    volatile std::atomic<size_t> head;
-    volatile std::atomic<size_t> tail;
-    volatile std::atomic<size_t> tot;
-    volatile std::atomic<T> buf[S];
-    volatile bool valid[S];
+
+    std::atomic<size_t> head;
+
+    char pad0[256];// Just waste some space to mitigate false sharing.
+
+    std::atomic<size_t> tail;
+
+
+    char pad1[256];// Just waste some space to mitigate false sharing.
+
+
+    std::atomic<size_t> tot;
+
+
+    char pad2[256];// Just waste some space to mitigate false sharing.
+
+    T buf[S];
+
+    char pad3[256];// Just waste some space to mitigate false sharing.
+
+    bool valid[S];
+
 private:
 };
