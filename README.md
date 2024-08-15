@@ -135,3 +135,73 @@ Due to the high number of cycles spent stalling in the backed (presumably on mem
        0.173510000 seconds sys
 
 There's a pretty large jump in performance there. The obvious change is that the number of cycles spent stalling in the backend *halved* and the runtime reduced by ~40%. I was a bit surprised by this, since we presumably now spend a decent amount of time blocking on the dump file mutex.
+
+# Impacts of alignas() to reduce false sharing on FA-based queue
+
+Aligning each data and valid flag to a cache line should reduce false sharing and improve latencies. All experiments here are with 10 producers contending over the queue:
+
+Here are the stats for the implementation which is cache-line naive:
+
+      1,111,659.71 msec task-clock                       #    7.778 CPUs utilized             
+           788,002      context-switches                 #  708.852 /sec                      
+            18,233      cpu-migrations                   #   16.402 /sec                      
+               320      page-faults                      #    0.288 /sec                      
+ 4,047,473,558,026      cycles                           #    3.641 GHz                         (71.42%)
+     7,429,226,236      stalled-cycles-frontend          #    0.18% frontend cycles idle        (71.42%)
+   314,524,789,636      instructions                     #    0.08  insn per cycle            
+                                                  #    0.02  stalled cycles per insn     (71.43%)
+    45,421,602,269      branches                         #   40.859 M/sec                       (71.43%)
+       118,925,484      branch-misses                    #    0.26% of all branches             (71.43%)
+   186,022,353,334      L1-dcache-loads                  #  167.337 M/sec                       (71.44%)
+     6,397,230,364      L1-dcache-load-misses            #    3.44% of all L1-dcache accesses   (71.43%)
+   <not supported>      LLC-loads                                                             
+   <not supported>      LLC-load-misses                                                       
+
+     142.929940019 seconds time elapsed
+
+    1103.003503000 seconds user
+       7.913438000 seconds sys
+
+![image](https://github.com/user-attachments/assets/89a31690-4647-467f-93b1-23e13fdca492)
+
+count     5.000000e+06
+mean      2.750125e+02
+std       3.639226e+06
+min      -5.746573e+09
+50%       1.200000e+02
+99%       1.940000e+03
+99.99%    9.580005e+04
+max       5.761637e+09
+
+... and here are the stats for the same implementation but segmenting data and valid flags by cache line.
+
+        620,954.54 msec task-clock                       #    7.722 CPUs utilized             
+           799,491      context-switches                 #    1.288 K/sec                     
+            18,398      cpu-migrations                   #   29.629 /sec                      
+               357      page-faults                      #    0.575 /sec                      
+ 2,377,107,163,786      cycles                           #    3.828 GHz                         (71.43%)
+     5,920,377,786      stalled-cycles-frontend          #    0.25% frontend cycles idle        (71.45%)
+   198,627,812,097      instructions                     #    0.08  insn per cycle            
+                                                  #    0.03  stalled cycles per insn     (71.43%)
+    29,391,809,979      branches                         #   47.333 M/sec                       (71.42%)
+        99,778,647      branch-misses                    #    0.34% of all branches             (71.42%)
+   115,880,473,484      L1-dcache-loads                  #  186.617 M/sec                       (71.42%)
+     3,975,936,415      L1-dcache-load-misses            #    3.43% of all L1-dcache accesses   (71.42%)
+   <not supported>      LLC-loads                                                             
+   <not supported>      LLC-load-misses                                                       
+
+      80.411673381 seconds time elapsed
+
+     611.762058000 seconds user
+       8.521569000 seconds sys
+
+![image](https://github.com/user-attachments/assets/28d55966-c110-44e8-ab94-02dcec12c453)
+
+count     5.000000e+06
+mean      5.295631e+02
+std       1.045284e+04
+min       2.000000e+01
+50%       2.000000e+02
+99%       2.060000e+03
+99.99%    1.542200e+05
+max       8.071400e+06
