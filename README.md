@@ -141,7 +141,7 @@ There's a pretty large jump in performance there. The obvious change is that the
 Aligning each data and valid flag to a cache line should reduce false sharing and improve latencies. All experiments here are with 10 producers contending over the queue:
 
 Here are the stats for the implementation which is cache-line naive:
-
+```
       1,111,659.71 msec task-clock                       #    7.778 CPUs utilized             
            788,002      context-switches                 #  708.852 /sec                      
             18,233      cpu-migrations                   #   16.402 /sec                      
@@ -161,7 +161,7 @@ Here are the stats for the implementation which is cache-line naive:
 
     1103.003503000 seconds user
        7.913438000 seconds sys
-
+```
 ![image](https://github.com/user-attachments/assets/89a31690-4647-467f-93b1-23e13fdca492)
 
 count     5.000000e+06
@@ -174,7 +174,7 @@ min      -5.746573e+09
 max       5.761637e+09
 
 ... and here are the stats for the same implementation but segmenting data and valid flags by cache line.
-
+```
         620,954.54 msec task-clock                       #    7.722 CPUs utilized             
            799,491      context-switches                 #    1.288 K/sec                     
             18,398      cpu-migrations                   #   29.629 /sec                      
@@ -194,7 +194,7 @@ max       5.761637e+09
 
      611.762058000 seconds user
        8.521569000 seconds sys
-
+```
 ![image](https://github.com/user-attachments/assets/28d55966-c110-44e8-ab94-02dcec12c453)
 
 count     5.000000e+06
