@@ -163,7 +163,7 @@ Here are the stats for the implementation which is cache-line naive:
        7.913438000 seconds sys
 ```
 ![image](https://github.com/user-attachments/assets/89a31690-4647-467f-93b1-23e13fdca492)
-
+```
 count     5.000000e+06
 mean      2.750125e+02
 std       3.639226e+06
@@ -172,6 +172,7 @@ min      -5.746573e+09
 99%       1.940000e+03
 99.99%    9.580005e+04
 max       5.761637e+09
+```
 
 ... and here are the stats for the same implementation but segmenting data and valid flags by cache line.
 ```
@@ -196,7 +197,7 @@ max       5.761637e+09
        8.521569000 seconds sys
 ```
 ![image](https://github.com/user-attachments/assets/28d55966-c110-44e8-ab94-02dcec12c453)
-
+```
 count     5.000000e+06
 mean      5.295631e+02
 std       1.045284e+04
@@ -205,3 +206,4 @@ min       2.000000e+01
 99%       2.060000e+03
 99.99%    1.542200e+05
 max       8.071400e+06
+```
