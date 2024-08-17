@@ -196,14 +196,15 @@ max       5.761637e+09
      611.762058000 seconds user
        8.521569000 seconds sys
 ```
-![image](https://github.com/user-attachments/assets/28d55966-c110-44e8-ab94-02dcec12c453)
+![image](https://github.com/user-attachments/assets/cbdc0af9-ee24-48d7-8d85-f8d45ba41ff0)
+
 ```
 count     5.000000e+06
-mean      5.295631e+02
-std       1.045284e+04
+mean      2.997010e+02
+std       1.191207e+04
 min       2.000000e+01
-50%       2.000000e+02
-99%       2.060000e+03
-99.99%    1.542200e+05
-max       8.071400e+06
+50%       1.800000e+02
+99%       1.960000e+03
+99.99%    8.246000e+04
+max       1.399436e+07
 ```
